@@ -1,7 +1,7 @@
 __precompile__(true)
 
 module GraphLayout
-    using Compose, GeometryTypes   # for plotting features
+    using GeometryTypes   # for plotting features
 
     typealias AdjList{T} Vector{Vector{T}}
 
@@ -11,17 +11,14 @@ module GraphLayout
 
     # Stress majorization layout algorithm
     export layout_stressmajorize_adj
-    include("stress.jl")
+    #include("stress.jl")
 
     # Tree layout algorithms
     export layout_tree
-    include("tree.jl")
+    #include("tree.jl")
     # Heuristic algortihms for tree layout
-    include("tree_heur.jl")
+    #include("tree_heur.jl")
     # Optimal algorithms for tree layout, that require JuMP
-    include("tree_opt.jl")
+    #include("tree_opt.jl")
 
-    # Drawing utilities
-    export draw_layout_adj
-    include("draw.jl")
 end

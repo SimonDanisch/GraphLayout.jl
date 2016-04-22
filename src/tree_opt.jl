@@ -8,7 +8,7 @@
 # so we need to always load JuMP for now.
 ########################################################################
 
-using JuMP
+#using JuMP
 
 """
     Given a layer assignment, decide a permutation for each layer
