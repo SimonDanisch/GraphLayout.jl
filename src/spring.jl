@@ -13,13 +13,13 @@
     MAXITER    Number of iterations we apply the forces
     INITTEMP   Initial "temperature", controls movement per iteration
 """
-function layout_spring{T, P}(adj_matrix::Array{T,2}; C=2.0, MAXITER=100, INITTEMP=2.0)
+function layout_spring{T}(adj_matrix::Array{T,2}; C=2.0, MAXITER=100, INITTEMP=2.0)
     N = size(adj_matrix, 1)
     # Initial layout is random on the square [-1,+1]^2
     locs = 2*rand(Point{2, Float64}, N) .- 1.
     layout_spring!(adj_matrix, locs, C=C, MAXITER=MAXITER, INITTEMP=INITTEMP)
 end
-scaler(z, a, b) = 2.0*((z - a)/(b - a)) - 1.0
+scaler(z, a, b) = 2.0*((z - a)./(b - a)) - 1.0
 
 immutable SpringLayouter{A, P, F}
     adjacency::A
@@ -29,32 +29,32 @@ immutable SpringLayouter{A, P, F}
     initial_temperature::Float64
 end
 
-function iterate!(sl::SpringLayouter, state::Integer)
-    positions = sl.positions
-    forces = sl.forces
-    N = length(positions)
-    P = eltype(positions)
-    D = ndims(P)
-    PT = eltype(P)
+function iterate!{A,T,F}(sl::SpringLayouter{A,T,F}, state::Integer)
+    positions = sl.positions;forces = sl.forces;adj_matrix = sl.adjacency
+    const N = length(positions)
+    const adj_zero = zero(eltype(A))
+    const P = eltype(T)
+    const D = length(P)
+    P = eltype(T);PT = eltype(P);FT = eltype(F)
     K = sl.K
     # Calculate forces
     @inbounds for i = 1:N
-        force_vec = Vec{D,PT}(0.0)
+        force_vec = FT(0)
         for j = 1:N
             i == j && continue
-            d_vec = Vec{D,PT}(positions[j] - positions[i])
+            d_vec = FT(positions[j] - positions[i])
             d = norm(d_vec)
-            if adj_matrix[i,j] != zero(eltype(adj_matrix)) || adj_matrix[j,i] != zero(eltype(adj_matrix))
-                F_d = d / K - K^2 / d^2
+            if ((adj_matrix[i,j] != adj_zero) || (adj_matrix[j,i] != adj_zero))
+                F_d = PT(d / K - K^2 / d^2)
             else
-                F_d = -K^2 / d^2
+                F_d = PT(-K^2 / d^2)
             end
-            force_vec += F_d.*d_vec
+            force_vec += FT(F_d.*d_vec)
         end
-        forces[i] = force_vec_x
+        forces[i] = force_vec
     end
 
-    temperature = sl.initial_temperature / state
+    temperature = PT(sl.initial_temperature / state)
     # Now apply them, but limit to temperature
     @inbounds for i = 1:N
         f = forces[i]
@@ -69,27 +69,20 @@ function SpringLayouter(adj_matrix, initial_positions, C, initial_temperature)
     size(adj_matrix, 1) != size(adj_matrix, 2) && error("Adj. matrix must be square.")
     N = size(adj_matrix, 1)
     N != length(initial_positions) && error("length of initial positions must be equal to number of graph nodes.")
-    D = ndims(P)
-    PT = eltype(P)
     # The optimal distance bewteen vertices
     K = C * sqrt(4.0 / N)
     # Store forces and apply at end of iteration all at once
-    forces = zeros(P, N)
-    SpringLayouter(adj_matrix, initial_positions, forces, temperature, K, initial_temperature)
+    P = eltype(initial_positions)
+    forces = zeros(Vec{length(P), eltype(P)}, N)
+    SpringLayouter(adj_matrix, initial_positions, forces, K, initial_temperature)
 end
 
-function layout_spring!{T, P}(adj_matrix::Array{T,2}, initial_positions::AbstractArray{P,1}; C=2.0, MAXITER=100, INITTEMP=2.0)
-
+function layout_spring!{T<:AbstractVector}(adj_matrix, initial_positions::T; C=2.0, MAXITER=100, INITTEMP=2.0)
     sl = SpringLayouter(adj_matrix, initial_positions, C, INITTEMP)
-
     # Iterate MAXITER times
-    @inbounds for iter = 1:MAXITER
-        iterate(sl, iter)
+    for iter = 1:MAXITER
+        iterate!(sl, iter)
     end
-    # Scale to unit square
-    mini, maxi = extrema(initial_positions)
-    for (i,p) in enumerate(initial_positions)
-        initial_positions[i] = scaler(p, mini, maxi)
-    end
-    return initial_positions
+
+    return sl.positions::T
 end
