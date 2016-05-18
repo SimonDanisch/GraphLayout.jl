@@ -117,7 +117,7 @@ function visualize_graph(g, intensity, w, cmap, cnorm)
     view(nodes, w, camera=:perspective
     )
     # reuse the same gpu buffer for the vertices
-    gpu_points = w.renderlist[1][1][:position]
+    gpu_points = renderlist(w)[1][:position]
     # visualize vertices as colored lines
     verts = visualize(gpu_points, :linesegment, indices=indices_s, color=colormap_single)
     view(verts, w, camera=:perspective)
